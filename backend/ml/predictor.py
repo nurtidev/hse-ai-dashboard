@@ -1,14 +1,13 @@
 """
-Предиктивная модель на Prophet.
-Прогноз числа инцидентов на 3, 6, 12 месяцев вперёд.
+Предиктивная модель на основе линейного тренда + сезонности (numpy/pandas).
+Заменяет Prophet для надёжной работы на любом сервере без компиляции.
 """
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
 
+import numpy as np
 import pandas as pd
-from prophet import Prophet
 
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "incidents.csv"
@@ -22,55 +21,72 @@ def _load_monthly(incident_type: str | None = None) -> pd.DataFrame:
         df.resample("MS", on="date")
         .size()
         .reset_index(name="y")
-        .rename(columns={"date": "ds"})
     )
     return monthly
 
 
 def predict(
-    horizon_months: Literal[3, 6, 12] = 12,
+    horizon_months: int = 12,
     incident_type: str | None = None,
 ) -> dict:
     """
-    Возвращает исторические данные + прогноз с доверительным интервалом.
+    Линейный тренд + месячная сезонность + доверительный интервал (±1.28σ = 80%).
     """
     monthly = _load_monthly(incident_type)
 
-    model = Prophet(
-        yearly_seasonality=True,
-        weekly_seasonality=False,
-        daily_seasonality=False,
-        interval_width=0.80,
-    )
-    model.fit(monthly)
+    n = len(monthly)
+    y = monthly["y"].values.astype(float)
+    t = np.arange(n)
 
-    future = model.make_future_dataframe(periods=horizon_months, freq="MS")
-    forecast = model.predict(future)
+    # Линейный тренд
+    coeffs = np.polyfit(t, y, 1)
+    trend = np.poly1d(coeffs)
+    fitted = trend(t)
+    residuals = y - fitted
 
-    history_end = monthly["ds"].max()
+    # Месячная сезонность — среднее отклонение по каждому месяцу
+    monthly["month"] = monthly["date"].dt.month
+    monthly["resid"] = residuals
+    seasonal = monthly.groupby("month")["resid"].mean().to_dict()
 
+    # Стандартное отклонение остатков для CI
+    sigma = residuals.std()
+
+    # Строим итоговый ряд (история + прогноз)
+    last_date = monthly["date"].max()
     result_rows = []
-    for _, row in forecast.iterrows():
+
+    # История
+    for i, row in monthly.iterrows():
         result_rows.append({
-            "date": row["ds"].strftime("%Y-%m"),
-            "actual": None,
-            "predicted": max(0, round(row["yhat"], 1)),
-            "lower": max(0, round(row["yhat_lower"], 1)),
-            "upper": max(0, round(row["yhat_upper"], 1)),
-            "is_forecast": row["ds"] > history_end,
+            "date": row["date"].strftime("%Y-%m"),
+            "actual": int(row["y"]),
+            "predicted": None,
+            "lower": None,
+            "upper": None,
+            "is_forecast": False,
         })
 
-    # Заполняем фактические значения
-    actual_map = {
-        row["ds"].strftime("%Y-%m"): int(row["y"]) for _, row in monthly.iterrows()
-    }
-    for r in result_rows:
-        if r["date"] in actual_map:
-            r["actual"] = actual_map[r["date"]]
+    # Прогноз
+    for step in range(1, horizon_months + 1):
+        future_date = last_date + pd.DateOffset(months=step)
+        t_future = n - 1 + step
+        trend_val = trend(t_future)
+        seas = seasonal.get(future_date.month, 0)
+        predicted = max(0, trend_val + seas)
+        lower = max(0, predicted - 1.28 * sigma)
+        upper = max(0, predicted + 1.28 * sigma)
 
-    total_forecast = sum(
-        r["predicted"] for r in result_rows if r["is_forecast"]
-    )
+        result_rows.append({
+            "date": future_date.strftime("%Y-%m"),
+            "actual": None,
+            "predicted": round(predicted, 1),
+            "lower": round(lower, 1),
+            "upper": round(upper, 1),
+            "is_forecast": True,
+        })
+
+    total_predicted = sum(r["predicted"] for r in result_rows if r["is_forecast"])
     total_lower = sum(r["lower"] for r in result_rows if r["is_forecast"])
     total_upper = sum(r["upper"] for r in result_rows if r["is_forecast"])
 
@@ -79,7 +95,7 @@ def predict(
         "incident_type": incident_type,
         "series": result_rows,
         "summary": {
-            "total_predicted": round(total_forecast, 1),
+            "total_predicted": round(total_predicted, 1),
             "total_lower": round(total_lower, 1),
             "total_upper": round(total_upper, 1),
         },
