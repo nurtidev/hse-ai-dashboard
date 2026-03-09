@@ -1,0 +1,103 @@
+"""
+AI-рекомендации через Claude API на основе паттернов из данных.
+Результат кэшируется на 1 час — повторные заходы не тратят токены.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import time
+from pathlib import Path
+
+import anthropic
+import pandas as pd
+from fastapi import APIRouter, Query
+
+from ml.risk_scorer import top_risk_zones
+
+router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
+
+INCIDENTS_PATH = Path(__file__).parent.parent / "data" / "incidents.csv"
+KORGAU_PATH = Path(__file__).parent.parent / "data" / "korgau_cards.csv"
+
+CACHE_TTL = 3600  # секунды (1 час)
+_cache: dict = {"data": None, "ts": 0}
+
+
+def _build_context() -> str:
+    inc = pd.read_csv(INCIDENTS_PATH, parse_dates=["date"])
+    korgau = pd.read_csv(KORGAU_PATH, parse_dates=["date"])
+
+    cutoff = inc["date"].max() - pd.DateOffset(months=6)
+    recent_inc = inc[inc["date"] >= cutoff]
+    recent_viol = korgau[(korgau["date"] >= cutoff) & (korgau["obs_type"] == "Нарушение")]
+
+    top_inc_types = recent_inc["type"].value_counts().head(3).to_dict()
+    top_causes = recent_inc["cause"].value_counts().head(3).to_dict()
+    top_viol_cats = recent_viol["category"].value_counts().head(3).to_dict()
+    top_locations = recent_inc["location"].value_counts().head(3).to_dict()
+
+    return f"""Данные HSE-системы за последние 6 месяцев:
+
+Происшествия ({len(recent_inc)} шт.):
+- Топ типов: {top_inc_types}
+- Топ причин: {top_causes}
+- Топ локаций: {top_locations}
+
+Нарушения по Карте Коргау ({len(recent_viol)} шт.):
+- Топ категорий нарушений: {top_viol_cats}
+
+Топ-3 зоны риска:
+{top_risk_zones(3)}""".strip()
+
+
+def _fetch_from_claude(context: str) -> list:
+    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=2048,
+        messages=[
+            {
+                "role": "user",
+                "content": f"""Ты эксперт по охране труда в нефтегазовой отрасли.
+На основе следующих данных HSE-системы сформируй ровно 5 конкретных рекомендаций по улучшению безопасности.
+
+{context}
+
+Формат ответа — JSON-массив объектов:
+[
+  {{
+    "priority": "Высокий" | "Средний" | "Низкий",
+    "title": "Краткое название меры",
+    "description": "Конкретное описание действия (2-3 предложения)",
+    "target": "На кого направлено (организация/локация/тип работ)",
+    "expected_effect": "Ожидаемый результат"
+  }}
+]
+
+Отвечай только JSON, без markdown-обёртки.""",
+            }
+        ],
+    )
+    raw = message.content[0].text.strip()
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    return json.loads(raw)
+
+
+@router.get("/")
+def get_recommendations(refresh: bool = Query(False, description="Принудительно обновить (игнорировать кэш)")):
+    now = time.time()
+    cache_valid = _cache["data"] is not None and (now - _cache["ts"]) < CACHE_TTL
+
+    if cache_valid and not refresh:
+        return {**_cache["data"], "cached": True}
+
+    context = _build_context()
+    recommendations = _fetch_from_claude(context)
+
+    _cache["data"] = {"recommendations": recommendations, "context_summary": context}
+    _cache["ts"] = now
+
+    return {**_cache["data"], "cached": False}
