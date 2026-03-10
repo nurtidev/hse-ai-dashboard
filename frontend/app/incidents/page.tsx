@@ -24,6 +24,14 @@ interface ForecastPoint {
   is_forecast: boolean;
 }
 
+interface ModelMetrics {
+  mae: number;
+  rmse: number;
+  r2: number;
+  backtest_months: number;
+  method: string;
+}
+
 interface RiskZone {
   org_name: string;
   location: string;
@@ -35,6 +43,7 @@ interface RiskZone {
 export default function IncidentsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [forecast, setForecast] = useState<ForecastPoint[]>([]);
+  const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
   const [risks, setRisks] = useState<RiskZone[]>([]);
   const [types, setTypes] = useState<string[]>([]);
   const [orgs, setOrgs] = useState<{ org_id: string; org_name: string }[]>([]);
@@ -64,7 +73,10 @@ export default function IncidentsPage() {
   useEffect(() => {
     const params = new URLSearchParams({ horizon: String(horizon) });
     if (incidentType) params.set("incident_type", incidentType);
-    fetch(`${API}/api/incidents/predict?${params}`).then((r) => r.json()).then((d) => setForecast(d.series ?? []));
+    fetch(`${API}/api/incidents/predict?${params}`).then((r) => r.json()).then((d) => {
+      setForecast(d.series ?? []);
+      setMetrics(d.model_metrics ?? null);
+    });
   }, [horizon, incidentType]);
 
   const byTypeData = stats
@@ -211,6 +223,40 @@ export default function IncidentsPage() {
           </LineChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Метрики модели */}
+      {metrics && (
+        <div className="bg-slate-800 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-slate-200 font-semibold">Точность предиктивной модели</h2>
+            <span className="text-xs text-slate-500 bg-slate-700 px-2 py-1 rounded">
+              Backtesting · последние {metrics.backtest_months} мес.
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="bg-slate-700/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-slate-400 mb-1">MAE</div>
+              <div className="text-2xl font-bold text-blue-400">{metrics.mae}</div>
+              <div className="text-xs text-slate-500 mt-1">средняя абс. ошибка</div>
+            </div>
+            <div className="bg-slate-700/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-slate-400 mb-1">RMSE</div>
+              <div className="text-2xl font-bold text-purple-400">{metrics.rmse}</div>
+              <div className="text-xs text-slate-500 mt-1">среднекв. ошибка</div>
+            </div>
+            <div className="bg-slate-700/50 rounded-lg p-4 text-center">
+              <div className="text-xs text-slate-400 mb-1">R²</div>
+              <div className={`text-2xl font-bold ${metrics.r2 >= 0.7 ? "text-green-400" : metrics.r2 >= 0.4 ? "text-yellow-400" : "text-red-400"}`}>
+                {metrics.r2}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">коэф. детерминации</div>
+            </div>
+          </div>
+          <div className="text-xs text-slate-500">
+            Метод: {metrics.method} · Доверительный интервал: 80%
+          </div>
+        </div>
+      )}
 
       {/* Топ зон риска */}
       <div className="bg-slate-800 rounded-xl p-5">

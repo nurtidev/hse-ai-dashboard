@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 import numpy as np
+import simulation_store
 
 INCIDENTS_PATH = Path(__file__).parent.parent / "data" / "incidents.csv"
 KORGAU_PATH = Path(__file__).parent.parent / "data" / "korgau_cards.csv"
@@ -25,6 +26,11 @@ SEVERITY_WEIGHTS = {
 
 def _load() -> tuple[pd.DataFrame, pd.DataFrame]:
     inc = pd.read_csv(INCIDENTS_PATH, parse_dates=["date"])
+    extra = simulation_store.get_extra()
+    if extra:
+        extra_df = pd.DataFrame(extra)
+        extra_df["date"] = pd.to_datetime(extra_df["date"])
+        inc = pd.concat([inc, extra_df], ignore_index=True)
     korgau = pd.read_csv(KORGAU_PATH, parse_dates=["date"])
     return inc, korgau
 
