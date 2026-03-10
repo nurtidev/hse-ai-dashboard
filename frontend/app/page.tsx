@@ -62,7 +62,7 @@ export default function OverviewPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/api/kpi`).then((r) => r.json()),
+      fetch(`${API}/api/kpi/`).then((r) => r.json()),
       fetch(`${API}/api/incidents/stats`).then((r) => r.json()),
       fetch(`${API}/api/korgau/alerts`).then((r) => r.json()),
     ]).then(([kpiData, statsData, alertsData]) => {
