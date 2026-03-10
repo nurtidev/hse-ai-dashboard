@@ -9,6 +9,7 @@ const links = [
   { href: "/korgau", label: "Карта Коргау", icon: "☑" },
   { href: "/recommendations", label: "Рекомендации", icon: "✦" },
   { href: "/kpi", label: "Экон. эффект", icon: "₸" },
+  { href: "/chat", label: "AI Аналитик", icon: "◈" },
 ];
 
 export default function Sidebar() {

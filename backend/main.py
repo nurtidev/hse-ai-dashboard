@@ -5,7 +5,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import incidents, korgau, recommendations, kpi
+from routers import incidents, korgau, recommendations, kpi, chat
 
 app = FastAPI(
     title="HSE AI Dashboard API",
@@ -27,6 +27,7 @@ app.include_router(incidents.router)
 app.include_router(korgau.router)
 app.include_router(recommendations.router)
 app.include_router(kpi.router)
+app.include_router(chat.router)
 
 
 @app.get("/")
