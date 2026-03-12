@@ -49,6 +49,7 @@ def stats(
 
     violations = df[df["obs_type"] == "Нарушение"]
     good = df[df["obs_type"] == "Хорошая практика"]
+    proposals = df[df["obs_type"] == "Предложение"]
 
     by_category = violations["category"].value_counts().to_dict()
     by_org = violations["org_name"].value_counts().head(7).to_dict()
@@ -69,6 +70,7 @@ def stats(
         "total_observations": len(df),
         "total_violations": len(violations),
         "total_good_practices": len(good),
+        "total_proposals": len(proposals),
         "by_category": by_category,
         "by_org": by_org,
         "resolution_status": resolution,

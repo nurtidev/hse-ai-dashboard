@@ -9,6 +9,7 @@ interface KorgauStats {
   total_observations: number;
   total_violations: number;
   total_good_practices: number;
+  total_proposals: number;
   by_category: Record<string, number>;
   by_org: Record<string, number>;
   resolution_status: Record<string, number>;
@@ -70,7 +71,7 @@ export default function KorgauPage() {
       </div>
 
       {/* Сводные KPI */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="bg-slate-800 rounded-xl p-5 border-l-4 border-blue-500">
           <div className="text-slate-400 text-sm">Всего наблюдений</div>
           <div className="text-2xl font-bold mt-1">{stats?.total_observations ?? "—"}</div>
@@ -87,6 +88,11 @@ export default function KorgauPage() {
         <div className="bg-slate-800 rounded-xl p-5 border-l-4 border-green-500">
           <div className="text-slate-400 text-sm">Хороших практик</div>
           <div className="text-2xl font-bold mt-1">{stats?.total_good_practices ?? "—"}</div>
+        </div>
+        <div className="bg-slate-800 rounded-xl p-5 border-l-4 border-yellow-500">
+          <div className="text-slate-400 text-sm">Предложений</div>
+          <div className="text-2xl font-bold mt-1">{stats?.total_proposals ?? "—"}</div>
+          <div className="text-xs text-slate-500 mt-1">инициативы работников</div>
         </div>
       </div>
 

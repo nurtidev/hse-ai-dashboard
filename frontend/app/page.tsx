@@ -35,22 +35,30 @@ interface SimulatedIncident {
 }
 
 const ORGS = [
-  { id: "org_01", name: "КМГ-Кумколь (основное)" },
   { id: "org_02", name: "БурСервис" },
-  { id: "org_03", name: "НефтеМонтаж" },
-  { id: "org_04", name: "КазТехСтрой" },
+  { id: "org_17", name: 'ТОО "Весенний Букет"' },
   { id: "org_05", name: "АзимутДриллинг" },
+  { id: "org_03", name: "НефтеМонтаж" },
+  { id: "org_01", name: "КМГ-Кумколь (основное)" },
+  { id: "org_04", name: "КазТехСтрой" },
   { id: "org_06", name: "СтройПодряд" },
   { id: "org_07", name: "ТрансНефть" },
+  { id: "org_09", name: 'ТОО "Алтын Раушан"' },
+  { id: "org_67", name: 'ТОО "Сакура KZ"' },
+  { id: "org_27", name: 'ТОО "Гүл Әлемі"' },
+  { id: "org_44", name: 'ТОО "Лазурная Лилия"' },
 ];
 
 const TYPES = [
   "НС (несчастный случай)",
   "Микротравма",
+  "Ухудшение здоровья",
   "Опасная ситуация",
   "Near-miss",
   "Авария оборудования",
   "Экологическое нарушение",
+  "ДТП",
+  "Пожар/Возгорание",
 ];
 
 function KpiCard({ title, value, sub, accent }: { title: string; value: string; sub?: string; accent?: string }) {
