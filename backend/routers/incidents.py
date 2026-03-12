@@ -1,27 +1,17 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 from fastapi import APIRouter, Query, HTTPException
 
 from ml.predictor import predict
 from ml.risk_scorer import top_risk_zones
-import simulation_store
+import data_loader
 
 router = APIRouter(prefix="/api/incidents", tags=["incidents"])
 
-DATA_PATH = Path(__file__).parent.parent / "data" / "incidents.csv"
-
 
 def _load() -> pd.DataFrame:
-    df = pd.read_csv(DATA_PATH, parse_dates=["date"])
-    extra = simulation_store.get_extra()
-    if extra:
-        extra_df = pd.DataFrame(extra)
-        extra_df["date"] = pd.to_datetime(extra_df["date"])
-        df = pd.concat([df, extra_df], ignore_index=True)
-    return df
+    return data_loader.load_incidents()
 
 
 @router.get("/stats")

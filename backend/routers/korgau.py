@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 from fastapi import APIRouter, Query
 
 from ml.alerts import get_alerts
 from ml.risk_scorer import org_ratings, correlation_analysis
+import data_loader
 
 router = APIRouter(prefix="/api/korgau", tags=["korgau"])
 
-DATA_PATH = Path(__file__).parent.parent / "data" / "korgau_cards.csv"
-
 
 def _load() -> pd.DataFrame:
-    return pd.read_csv(DATA_PATH, parse_dates=["date"])
+    return data_loader.load_korgau()
 
 
 @router.get("/alerts")

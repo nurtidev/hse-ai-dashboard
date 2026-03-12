@@ -5,11 +5,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import pandas as pd
-
-KORGAU_PATH = Path(__file__).parent.parent / "data" / "korgau_cards.csv"
+import data_loader
 
 ALERT_COLORS = {
     "CRITICAL": "#EF4444",
@@ -27,7 +25,7 @@ ALERT_LABELS = {
 
 
 def _load() -> pd.DataFrame:
-    df = pd.read_csv(KORGAU_PATH, parse_dates=["date"])
+    df = data_loader.load_korgau()
     return df[df["obs_type"] == "Нарушение"].copy()
 
 

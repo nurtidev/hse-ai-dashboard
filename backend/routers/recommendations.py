@@ -8,26 +8,24 @@ import json
 import os
 import re
 import time
-from pathlib import Path
 
 import anthropic
 import pandas as pd
 from fastapi import APIRouter, Query
 
 from ml.risk_scorer import top_risk_zones
+import data_loader
+import config_store
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
-INCIDENTS_PATH = Path(__file__).parent.parent / "data" / "incidents.csv"
-KORGAU_PATH = Path(__file__).parent.parent / "data" / "korgau_cards.csv"
-
 CACHE_TTL = 3600  # секунды (1 час)
-_cache: dict = {"data": None, "ts": 0}
+_cache: dict = {"data": None, "ts": 0, "dataset": None}
 
 
 def _build_context() -> str:
-    inc = pd.read_csv(INCIDENTS_PATH, parse_dates=["date"])
-    korgau = pd.read_csv(KORGAU_PATH, parse_dates=["date"])
+    inc = data_loader.load_incidents(with_simulated=False)
+    korgau = data_loader.load_korgau()
 
     cutoff = inc["date"].max() - pd.DateOffset(months=6)
     recent_inc = inc[inc["date"] >= cutoff]
@@ -89,7 +87,12 @@ def _fetch_from_claude(context: str) -> list:
 @router.get("/")
 def get_recommendations(refresh: bool = Query(False, description="Принудительно обновить (игнорировать кэш)")):
     now = time.time()
-    cache_valid = _cache["data"] is not None and (now - _cache["ts"]) < CACHE_TTL
+    current_dataset = config_store.get_dataset()
+    cache_valid = (
+        _cache["data"] is not None
+        and (now - _cache["ts"]) < CACHE_TTL
+        and _cache.get("dataset") == current_dataset
+    )
 
     if cache_valid and not refresh:
         return {**_cache["data"], "cached": True}
@@ -99,5 +102,6 @@ def get_recommendations(refresh: bool = Query(False, description="Принуди
 
     _cache["data"] = {"recommendations": recommendations, "context_summary": context}
     _cache["ts"] = now
+    _cache["dataset"] = current_dataset
 
     return {**_cache["data"], "cached": False}

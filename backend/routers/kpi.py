@@ -3,16 +3,13 @@
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 from fastapi import APIRouter
 
 from ml.predictor import predict
+import data_loader
 
 router = APIRouter(prefix="/api/kpi", tags=["kpi"])
-
-DATA_PATH = Path(__file__).parent.parent / "data" / "incidents.csv"
 
 # Стоимость инцидентов (тенге) — типовые отраслевые данные Казахстана
 COST_PER_INCIDENT = {
@@ -43,7 +40,7 @@ REDUCTION_RATES = {
 
 @router.get("/")
 def get_kpi():
-    df = pd.read_csv(DATA_PATH, parse_dates=["date"])
+    df = data_loader.load_incidents(with_simulated=False)
 
     # Среднегодовые показатели (по последним 3 годам)
     df["year"] = df["date"].dt.year

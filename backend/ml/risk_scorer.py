@@ -4,35 +4,26 @@ Risk Scoring — расчёт индекса риска для каждой ор
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 import numpy as np
-import simulation_store
-
-INCIDENTS_PATH = Path(__file__).parent.parent / "data" / "incidents.csv"
-KORGAU_PATH = Path(__file__).parent.parent / "data" / "korgau_cards.csv"
+import data_loader
 
 # Веса тяжести по типу инцидента
 SEVERITY_WEIGHTS = {
     "НС (несчастный случай)": 10,
     "Авария оборудования": 7,
+    "Пожар/Возгорание": 7,
+    "ДТП": 6,
     "Экологическое нарушение": 6,
     "Опасная ситуация": 4,
     "Near-miss": 3,
     "Микротравма": 2,
+    "Ухудшение здоровья": 2,
 }
 
 
 def _load() -> tuple[pd.DataFrame, pd.DataFrame]:
-    inc = pd.read_csv(INCIDENTS_PATH, parse_dates=["date"])
-    extra = simulation_store.get_extra()
-    if extra:
-        extra_df = pd.DataFrame(extra)
-        extra_df["date"] = pd.to_datetime(extra_df["date"])
-        inc = pd.concat([inc, extra_df], ignore_index=True)
-    korgau = pd.read_csv(KORGAU_PATH, parse_dates=["date"])
-    return inc, korgau
+    return data_loader.load_incidents(), data_loader.load_korgau()
 
 
 def top_risk_zones(n: int = 5) -> list[dict]:
