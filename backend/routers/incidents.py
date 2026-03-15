@@ -1,13 +1,61 @@
 from __future__ import annotations
 
+import json
+import os
+
+import anthropic
 import pandas as pd
 from fastapi import APIRouter, Query, HTTPException
+from pydantic import BaseModel
 
 from ml.predictor import predict
 from ml.risk_scorer import top_risk_zones
 import data_loader
 
 router = APIRouter(prefix="/api/incidents", tags=["incidents"])
+
+
+class ClassifyRequest(BaseModel):
+    text: str
+
+
+_CLASSIFY_PROMPT = """Ты — AI-система классификации происшествий в нефтегазовой отрасли (HSE).
+Проанализируй текст описания инцидента и верни JSON со следующими полями:
+
+- type: тип инцидента (одно из: "НС (несчастный случай)", "Микротравма", "Ухудшение здоровья", "Опасная ситуация", "Near-miss", "Авария оборудования", "Экологическое нарушение", "ДТП", "Пожар/Возгорание")
+- confidence: уверенность ("высокая", "средняя", "низкая")
+- severity: тяжесть ("критический", "высокий", "средний", "низкий")
+- clusters: список тематических кластеров из возможных ["Работа на высоте", "СИЗ", "LOTO/Изоляция энергии", "Транспорт", "Пожарная безопасность", "Химическая безопасность", "Электробезопасность", "Ручной труд", "Экология", "Оборудование"]
+- cause_category: корневая причина ("нарушение процедур", "неисправность оборудования", "человеческий фактор", "недостаточный надзор", "условия среды", "иное")
+- recommendation: одна конкретная превентивная мера (1-2 предложения)
+
+Верни ТОЛЬКО валидный JSON без пояснений.
+
+Текст инцидента: {text}"""
+
+
+@router.post("/classify")
+def classify_incident(req: ClassifyRequest):
+    if not req.text.strip():
+        raise HTTPException(status_code=422, detail="text не может быть пустым")
+
+    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=512,
+        messages=[{"role": "user", "content": _CLASSIFY_PROMPT.format(text=req.text)}],
+    )
+
+    raw = response.content[0].text.strip()
+    # убираем markdown-обёртку если есть
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="Не удалось разобрать ответ модели")
 
 
 def _load() -> pd.DataFrame:

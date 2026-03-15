@@ -40,6 +40,15 @@ interface RiskZone {
   risk_index: number;
 }
 
+interface ClassifyResult {
+  type: string;
+  confidence: string;
+  severity: string;
+  clusters: string[];
+  cause_category: string;
+  recommendation: string;
+}
+
 export default function IncidentsPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [forecast, setForecast] = useState<ForecastPoint[]>([]);
@@ -48,11 +57,32 @@ export default function IncidentsPage() {
   const [types, setTypes] = useState<string[]>([]);
   const [orgs, setOrgs] = useState<{ org_id: string; org_name: string }[]>([]);
 
+  const [classifyText, setClassifyText] = useState("");
+  const [classifyResult, setClassifyResult] = useState<ClassifyResult | null>(null);
+  const [classifyLoading, setClassifyLoading] = useState(false);
+
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [orgId, setOrgId] = useState("");
   const [incidentType, setIncidentType] = useState("");
   const [horizon, setHorizon] = useState<3 | 6 | 12>(12);
+
+  const runClassify = async () => {
+    if (!classifyText.trim()) return;
+    setClassifyLoading(true);
+    setClassifyResult(null);
+    try {
+      const res = await fetch(`${API}/api/incidents/classify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: classifyText }),
+      });
+      const data = await res.json();
+      setClassifyResult(data);
+    } finally {
+      setClassifyLoading(false);
+    }
+  };
 
   const loadStats = () => {
     const params = new URLSearchParams();
@@ -257,6 +287,74 @@ export default function IncidentsPage() {
           </div>
         </div>
       )}
+
+      {/* NLP: AI-классификатор описания инцидента */}
+      <div className="bg-slate-800 rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-slate-200 font-semibold">AI-анализ текста инцидента</h2>
+          <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded border border-blue-500/30">NLP · F-01</span>
+        </div>
+        <p className="text-slate-400 text-sm mb-4">
+          Вставьте произвольное описание инцидента — Claude автоматически определит тип, тяжесть, тематику и предложит меру контроля.
+        </p>
+        <textarea
+          value={classifyText}
+          onChange={(e) => setClassifyText(e.target.value)}
+          placeholder="Например: Работник упал с лестницы при монтаже трубопровода на высоте 4 метров. Средства защиты от падения отсутствовали."
+          rows={3}
+          className="w-full bg-slate-700 text-slate-100 text-sm rounded-lg px-4 py-3 border border-slate-600 focus:outline-none focus:border-blue-500 resize-none mb-3"
+        />
+        <button
+          onClick={runClassify}
+          disabled={classifyLoading || !classifyText.trim()}
+          className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm px-5 py-2 rounded-lg transition-colors"
+        >
+          {classifyLoading ? "Анализирую..." : "Классифицировать"}
+        </button>
+
+        {classifyResult && (
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-slate-700/50 rounded-lg p-4">
+              <div className="text-xs text-slate-400 mb-1">Тип инцидента</div>
+              <div className="text-slate-100 font-semibold">{classifyResult.type}</div>
+              <div className="flex gap-2 mt-2">
+                <span className={`text-xs px-2 py-0.5 rounded ${
+                  classifyResult.severity === "критический" ? "bg-red-500/20 text-red-400" :
+                  classifyResult.severity === "высокий" ? "bg-orange-500/20 text-orange-400" :
+                  classifyResult.severity === "средний" ? "bg-yellow-500/20 text-yellow-400" :
+                  "bg-green-500/20 text-green-400"
+                }`}>
+                  {classifyResult.severity}
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-600 text-slate-300">
+                  уверенность: {classifyResult.confidence}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-slate-700/50 rounded-lg p-4">
+              <div className="text-xs text-slate-400 mb-2">Тематические кластеры</div>
+              <div className="flex flex-wrap gap-1">
+                {classifyResult.clusters.map((c) => (
+                  <span key={c} className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30">
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-slate-700/50 rounded-lg p-4">
+              <div className="text-xs text-slate-400 mb-1">Корневая причина</div>
+              <div className="text-slate-200 text-sm">{classifyResult.cause_category}</div>
+            </div>
+
+            <div className="bg-slate-700/50 rounded-lg p-4">
+              <div className="text-xs text-slate-400 mb-1">Рекомендованная мера</div>
+              <div className="text-slate-200 text-sm">{classifyResult.recommendation}</div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Топ зон риска */}
       <div className="bg-slate-800 rounded-xl p-5">
