@@ -52,6 +52,7 @@ export default function Sidebar() {
         body: JSON.stringify({ dataset: value }),
       });
       setDataset(value);
+      window.dispatchEvent(new CustomEvent("hse-dataset-changed", { detail: { dataset: value } }));
       router.refresh();
     } finally {
       setSwitching(false);

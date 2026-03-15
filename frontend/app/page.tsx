@@ -114,6 +114,12 @@ export default function OverviewPage() {
     fetch(`${API}/api/simulate/status`).then((r) => r.json()).then((d) => setSimCount(d.total_simulated));
   }, [loadData]);
 
+  useEffect(() => {
+    const handler = () => loadData();
+    window.addEventListener("hse-dataset-changed", handler);
+    return () => window.removeEventListener("hse-dataset-changed", handler);
+  }, [loadData]);
+
   const handleSimulate = async () => {
     setSimulating(true);
     const params = new URLSearchParams();

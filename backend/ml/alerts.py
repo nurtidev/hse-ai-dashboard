@@ -47,7 +47,7 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
         org_name=("org_name", "first"),
         count=("id", "count"),
     ).reset_index()
-    threshold = df.groupby("org_id")["id"].count().mean() / 12 * 2  # среднемесячное × 2
+    threshold = df.groupby("org_id")["id"].count().mean() / 12  # среднемесячное
     for _, row in counts_30[counts_30["count"] >= threshold * 2].iterrows():
         alerts.append({
             "level": "CRITICAL",
@@ -65,7 +65,7 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
         .size()
         .reset_index(name="count")
     )
-    for _, row in repeat[repeat["count"] > 3].iterrows():
+    for _, row in repeat[repeat["count"] >= 3].iterrows():
         if not any(
             a["org_id"] == row["org_id"] and a["level"] == "CRITICAL" for a in alerts
         ):

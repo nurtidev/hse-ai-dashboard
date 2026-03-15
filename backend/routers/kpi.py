@@ -83,6 +83,7 @@ def get_kpi():
             "total_saved_usd_per_year": round(total_saved_tenge / 480),  # ~480 тенге/$
             "response_time_reduction_pct": 83,  # из ТЗ
             "predicted_incidents_next_year": round(predicted_next_year, 1),
-            "roi_months": round(1_000_000 / (total_saved_tenge / 12), 1),  # окупаемость
+            # Стоимость разработки AI-модуля: 1 млн тенге (типовая оценка MVP)
+            "roi_months": round(1_000_000 / (total_saved_tenge / 12), 1),
         },
     }

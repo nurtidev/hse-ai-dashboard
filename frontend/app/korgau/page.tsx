@@ -45,7 +45,7 @@ export default function KorgauPage() {
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
-  useEffect(() => {
+  const loadAll = () => {
     Promise.all([
       fetch(`${API}/api/korgau/stats`).then((r) => r.json()),
       fetch(`${API}/api/korgau/ratings`).then((r) => r.json()),
@@ -55,6 +55,15 @@ export default function KorgauPage() {
       setRatings(r.ratings ?? []);
       setAlerts(a.alerts ?? []);
     });
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("hse-dataset-changed", loadAll);
+    return () => window.removeEventListener("hse-dataset-changed", loadAll);
   }, []);
 
   const categoryData = stats

@@ -42,6 +42,12 @@ export default function RecommendationsPage() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    const handler = () => load(true);
+    window.addEventListener("hse-dataset-changed", handler);
+    return () => window.removeEventListener("hse-dataset-changed", handler);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">

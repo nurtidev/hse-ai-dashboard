@@ -38,13 +38,22 @@ export default function KpiPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [byType, setByType] = useState<ByType[]>([]);
 
-  useEffect(() => {
+  const loadAll = () => {
     fetch(`${API}/api/kpi/`)
       .then((r) => r.json())
       .then((d) => {
         setSummary(d.summary);
         setByType(d.by_type ?? []);
       });
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("hse-dataset-changed", loadAll);
+    return () => window.removeEventListener("hse-dataset-changed", loadAll);
   }, []);
 
   const beforeAfterData = byType.map((t) => ({

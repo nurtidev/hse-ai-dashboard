@@ -93,11 +93,22 @@ export default function IncidentsPage() {
     fetch(`${API}/api/incidents/stats?${params}`).then((r) => r.json()).then(setStats);
   };
 
-  useEffect(() => {
+  const reloadAll = () => {
     fetch(`${API}/api/incidents/types`).then((r) => r.json()).then((d) => setTypes(d.types));
     fetch(`${API}/api/incidents/organizations`).then((r) => r.json()).then((d) => setOrgs(d.organizations));
     fetch(`${API}/api/incidents/top-risks`).then((r) => r.json()).then((d) => setRisks(d.zones));
     loadStats();
+    const params = new URLSearchParams({ horizon: String(horizon) });
+    if (incidentType) params.set("incident_type", incidentType);
+    fetch(`${API}/api/incidents/predict?${params}`).then((r) => r.json()).then((d) => {
+      setForecast(d.series ?? []);
+      setMetrics(d.model_metrics ?? null);
+    });
+  };
+
+  useEffect(() => {
+    reloadAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -107,6 +118,13 @@ export default function IncidentsPage() {
       setForecast(d.series ?? []);
       setMetrics(d.model_metrics ?? null);
     });
+  }, [horizon, incidentType]);
+
+  useEffect(() => {
+    const handler = () => reloadAll();
+    window.addEventListener("hse-dataset-changed", handler);
+    return () => window.removeEventListener("hse-dataset-changed", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [horizon, incidentType]);
 
   const byTypeData = stats
