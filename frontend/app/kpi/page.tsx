@@ -27,7 +27,9 @@ interface Breakdown {
 
 interface Summary {
   total_prevented_incidents_per_year: number;
+  total_prevented_per_month: number;
   prevented_serious_incidents: number;
+  prevented_serious_per_month: number;
   prevented_microtrama: number;
   total_saved_tenge_per_year: number;
   total_saved_usd_per_year: number;
@@ -119,22 +121,22 @@ export default function KpiPage() {
         </div>
 
         <div className="bg-slate-800 rounded-xl p-5 border-l-4 border-red-500">
-          <div className="text-slate-400 text-sm">Предотвращено НС/год</div>
+          <div className="text-slate-400 text-sm">Тяжёлые травмы (НС) — предотвращено</div>
           <div className="text-3xl font-bold text-red-400 mt-1">
-            {summary ? `↓ ${summary.prevented_serious_incidents}` : "—"}
+            {summary ? `↓ ${summary.prevented_serious_per_month}/мес` : "—"}
           </div>
           <div className="text-slate-500 text-xs mt-1">
-            микротравм: ↓ {summary?.prevented_microtrama ?? "—"}/год
+            {summary ? `${summary.prevented_serious_incidents} НС/год · микротравм ↓ ${summary.prevented_microtrama}/год` : "—"}
           </div>
         </div>
 
         <div className="bg-slate-800 rounded-xl p-5 border-l-4 border-blue-500">
-          <div className="text-slate-400 text-sm">Предотвращаемых инцидентов/год</div>
+          <div className="text-slate-400 text-sm">Все инциденты — предотвращено</div>
           <div className="text-3xl font-bold text-blue-400 mt-1">
-            {summary ? `↓ ${summary.total_prevented_incidents_per_year}` : "—"}
+            {summary ? `↓ ${summary.total_prevented_per_month}/мес` : "—"}
           </div>
           <div className="text-slate-500 text-xs mt-1">
-            прогноз на след. год: {summary?.predicted_incidents_next_year ?? "—"}
+            {summary ? `${summary.total_prevented_incidents_per_year} инц/год · прогноз: ${summary.predicted_incidents_next_year}` : "—"}
           </div>
         </div>
 

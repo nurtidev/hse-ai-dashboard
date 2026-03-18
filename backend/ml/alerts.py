@@ -29,6 +29,18 @@ def _load() -> pd.DataFrame:
     return df[df["obs_type"] == "Нарушение"].copy()
 
 
+def _format_evidence(rows: pd.DataFrame, limit: int = 5) -> list[dict]:
+    """Форматирует список наблюдений-доказательств для алерта."""
+    result = []
+    for _, r in rows.head(limit).iterrows():
+        result.append({
+            "date": r["date"].strftime("%d.%m.%Y"),
+            "category": r["category"],
+            "resolved": bool(r["resolved"]),
+        })
+    return result
+
+
 def get_alerts(reference_date: datetime | None = None) -> list[dict]:
     """
     Генерирует список активных алертов на указанную дату.
@@ -49,6 +61,12 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
     ).reset_index()
     threshold = df.groupby("org_id")["id"].count().mean() / 12  # среднемесячное
     for _, row in counts_30[counts_30["count"] >= threshold * 2].iterrows():
+        org_violations = (
+            window_30[window_30["org_id"] == row["org_id"]]
+            .sort_values("date", ascending=False)
+        )
+        unresolved = int((org_violations["resolved"] == False).sum())
+        evidence = _format_evidence(org_violations)
         alerts.append({
             "level": "CRITICAL",
             "label": ALERT_LABELS["CRITICAL"],
@@ -57,6 +75,9 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
             "org_name": row["org_name"],
             "message": f"Число нарушений за 30 дней ({row['count']}) превысило порог в 2 раза",
             "count": int(row["count"]),
+            "unresolved_count": unresolved,
+            "evidence": evidence,
+            "recommended_action": "Назначить внеплановую проверку организации в течение 3 рабочих дней",
         })
 
     # --- Правило 2: HIGH — один тип нарушения повторяется >3 раз за 30 дней ---
@@ -69,6 +90,15 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
         if not any(
             a["org_id"] == row["org_id"] and a["level"] == "CRITICAL" for a in alerts
         ):
+            cat_violations = (
+                window_30[
+                    (window_30["org_id"] == row["org_id"]) &
+                    (window_30["category"] == row["category"])
+                ]
+                .sort_values("date", ascending=False)
+            )
+            unresolved = int((cat_violations["resolved"] == False).sum())
+            evidence = _format_evidence(cat_violations)
             alerts.append({
                 "level": "HIGH",
                 "label": ALERT_LABELS["HIGH"],
@@ -77,6 +107,9 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
                 "org_name": row["org_name"],
                 "message": f"Нарушения «{row['category']}» повторились {row['count']} раз за 30 дней",
                 "count": int(row["count"]),
+                "unresolved_count": unresolved,
+                "evidence": evidence,
+                "recommended_action": f"Провести целевой инструктаж по теме «{row['category']}» до конца недели. Обязательный контроль устранения.",
             })
 
     # --- Правило 3: MEDIUM — рост нарушений >15% к прошлому году ---
@@ -103,6 +136,9 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
                         "org_name": org_name,
                         "message": f"Рост нарушений +{round(growth * 100)}% к аналогичному периоду прошлого года",
                         "count": int(current[org_id]),
+                        "unresolved_count": None,
+                        "evidence": [],
+                        "recommended_action": "Усилить плановый аудит: увеличить частоту проверок на ближайшие 30 дней",
                     })
 
     # --- Правило 4: LOW — улучшение показателей ---
@@ -120,6 +156,9 @@ def get_alerts(reference_date: datetime | None = None) -> list[dict]:
                         "org_name": org_name,
                         "message": f"Снижение нарушений на {abs(round(growth * 100))}% — положительная динамика",
                         "count": int(current[org_id]),
+                        "unresolved_count": None,
+                        "evidence": [],
+                        "recommended_action": "Задокументировать лучшие практики и поделиться с другими организациями",
                     })
 
     # Сортировка по уровню критичности

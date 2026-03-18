@@ -10,6 +10,7 @@ const links = [
   { href: "/", label: "Обзор", icon: "⊞" },
   { href: "/incidents", label: "Происшествия", icon: "⚠" },
   { href: "/korgau", label: "Карта Коргау", icon: "☑" },
+  { href: "/investigate", label: "Следователь", icon: "🔍" },
   { href: "/recommendations", label: "Рекомендации", icon: "✦" },
   { href: "/kpi", label: "Экон. эффект", icon: "₸" },
   { href: "/chat", label: "AI Аналитик", icon: "◈" },

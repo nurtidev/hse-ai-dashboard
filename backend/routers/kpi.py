@@ -112,7 +112,9 @@ def get_kpi():
         "by_type": sorted(safety_kpi, key=lambda x: x["direct_savings_tenge"], reverse=True),
         "summary": {
             "total_prevented_incidents_per_year": round(total_prevented, 1),
+            "total_prevented_per_month": round(total_prevented / 12, 1),
             "prevented_serious_incidents": prevented_ns,
+            "prevented_serious_per_month": round(prevented_ns / 12, 2),
             "prevented_microtrama": prevented_microtrama,
             "total_saved_tenge_per_year": round(total_saved_tenge),
             "total_saved_usd_per_year": round(total_saved_tenge / 480),
