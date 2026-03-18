@@ -9,6 +9,7 @@ const API = process.env.NEXT_PUBLIC_API_URL;
 
 interface KpiSummary {
   total_prevented_incidents_per_year: number;
+  prevented_serious_incidents: number;
   total_saved_tenge_per_year: number;
   roi_months: number;
   predicted_incidents_next_year: number;
