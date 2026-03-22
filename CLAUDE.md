@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Documentation Lookup
+
+Always use Context7 (`use context7`) when referencing documentation for any library or framework used in this project (Next.js, FastAPI, Tailwind CSS, Recharts, Python, TypeScript, etc.). This ensures up-to-date API references instead of potentially outdated training data.
+
 ## Commands
 
 ### Backend

@@ -5,17 +5,16 @@ AI-рекомендации через Claude API на основе паттер
 from __future__ import annotations
 
 import json
-import os
 import re
 import time
 
-import anthropic
 import pandas as pd
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from ml.risk_scorer import top_risk_zones
 import data_loader
 import config_store
+from anthropic_client import get_client
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
@@ -51,14 +50,14 @@ def _build_context() -> str:
 
 
 def _fetch_from_claude(context: str) -> list:
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=2048,
-        messages=[
-            {
-                "role": "user",
-                "content": f"""Ты эксперт по охране труда в нефтегазовой отрасли.
+    try:
+        message = get_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=2048,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"""Ты эксперт по охране труда в нефтегазовой отрасли.
 На основе следующих данных HSE-системы сформируй ровно 5 конкретных рекомендаций по улучшению безопасности.
 
 {context}
@@ -75,13 +74,18 @@ def _fetch_from_claude(context: str) -> list:
 ]
 
 Отвечай только JSON, без markdown-обёртки.""",
-            }
-        ],
-    )
+                }
+            ],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка Claude API: {e}")
     raw = message.content[0].text.strip()
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=502, detail=f"Не удалось разобрать ответ модели: {e}")
 
 
 @router.get("/")

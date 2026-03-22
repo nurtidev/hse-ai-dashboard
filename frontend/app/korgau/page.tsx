@@ -137,10 +137,13 @@ function AlertCard({ alert }: { alert: Alert }) {
   );
 }
 
+const ALERTS_PER_PAGE = 10;
+
 export default function KorgauPage() {
   const [stats, setStats] = useState<KorgauStats | null>(null);
   const [ratings, setRatings] = useState<Rating[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alertPage, setAlertPage] = useState(0);
   const [passport, setPassport] = useState<Passport | null>(null);
   const [passportLoading, setPassportLoading] = useState(false);
 
@@ -216,12 +219,29 @@ export default function KorgauPage() {
       {/* Алерты */}
       {alerts.length > 0 && (
         <div className="bg-slate-800 rounded-xl p-5">
-          <h2 className="text-slate-200 font-semibold mb-4">
-            Активные алерты <span className="text-slate-400 font-normal text-sm">({alerts.length})</span>
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-slate-200 font-semibold">
+              Активные алерты <span className="text-slate-400 font-normal text-sm">({alerts.length})</span>
+            </h2>
+            {alerts.length > ALERTS_PER_PAGE && (
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <span>{alertPage * ALERTS_PER_PAGE + 1}–{Math.min((alertPage + 1) * ALERTS_PER_PAGE, alerts.length)} из {alerts.length}</span>
+                <button
+                  disabled={alertPage === 0}
+                  onClick={() => setAlertPage(p => p - 1)}
+                  className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                >‹</button>
+                <button
+                  disabled={(alertPage + 1) * ALERTS_PER_PAGE >= alerts.length}
+                  onClick={() => setAlertPage(p => p + 1)}
+                  className="px-2 py-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                >›</button>
+              </div>
+            )}
+          </div>
           <div className="space-y-2">
-            {alerts.map((a, i) => (
-              <AlertCard key={i} alert={a} />
+            {alerts.slice(alertPage * ALERTS_PER_PAGE, (alertPage + 1) * ALERTS_PER_PAGE).map((a, i) => (
+              <AlertCard key={alertPage * ALERTS_PER_PAGE + i} alert={a} />
             ))}
           </div>
         </div>
@@ -229,12 +249,20 @@ export default function KorgauPage() {
 
       {/* Нарушения по категориям */}
       <div className="bg-slate-800 rounded-xl p-5">
-        <h2 className="text-slate-200 font-semibold mb-4">Нарушения по категориям</h2>
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={categoryData} layout="vertical">
+        <h2 className="text-slate-200 font-semibold mb-1">Нарушения по категориям</h2>
+        <p className="text-slate-500 text-xs mb-4">Топ-10 категорий</p>
+        <ResponsiveContainer width="100%" height={categoryData.length * 36 + 20}>
+          <BarChart data={categoryData} layout="vertical" margin={{ left: 4, right: 16 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
             <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 11 }} tickLine={false} />
-            <YAxis type="category" dataKey="name" tick={{ fill: "#94a3b8", fontSize: 11 }} width={160} tickLine={false} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              tick={{ fill: "#94a3b8", fontSize: 11 }}
+              width={200}
+              tickLine={false}
+              tickFormatter={(v: string) => v.length > 30 ? v.slice(0, 28) + "…" : v}
+            />
             <Tooltip
               contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
               itemStyle={{ color: "#ef4444" }}

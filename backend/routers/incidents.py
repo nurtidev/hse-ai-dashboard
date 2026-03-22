@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import json
-import os
+import re
 from datetime import timedelta
 
-import anthropic
 import pandas as pd
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
@@ -12,6 +11,7 @@ from pydantic import BaseModel
 from ml.predictor import predict
 from ml.risk_scorer import top_risk_zones
 import data_loader
+from anthropic_client import get_client
 
 router = APIRouter(prefix="/api/incidents", tags=["incidents"])
 
@@ -40,19 +40,18 @@ def classify_incident(req: ClassifyRequest):
     if not req.text.strip():
         raise HTTPException(status_code=422, detail="text не может быть пустым")
 
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-    response = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=512,
-        messages=[{"role": "user", "content": _CLASSIFY_PROMPT.format(text=req.text)}],
-    )
+    try:
+        response = get_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{"role": "user", "content": _CLASSIFY_PROMPT.format(text=req.text)}],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка Claude API: {e}")
 
     raw = response.content[0].text.strip()
-    # убираем markdown-обёртку если есть
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
@@ -128,7 +127,12 @@ def get_types():
 @router.get("/organizations")
 def get_organizations():
     df = _load()
-    orgs = df[["org_id", "org_name"]].drop_duplicates().to_dict(orient="records")
+    orgs = (
+        df[["org_id", "org_name"]]
+        .dropna()
+        .drop_duplicates(subset="org_id")
+        .to_dict(orient="records")
+    )
     return {"organizations": orgs}
 
 
@@ -281,10 +285,12 @@ def _generate_investigation_analysis(
 
 Тон: экспертный, конкретный. Только текст, без заголовков."""
 
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=512,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    try:
+        message = get_client().messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except Exception:
+        return "Не удалось получить AI-анализ. Проверьте подключение к API."
     return message.content[0].text.strip()

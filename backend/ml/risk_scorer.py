@@ -99,6 +99,8 @@ def org_ratings() -> list[dict]:
     ]].sort_values("risk_index", ascending=False)
 
     result["risk_index"] = result["risk_index"].round(1)
+    # Фильтруем мусорные записи (org_name пустой или нечисловой короткий)
+    result = result[result["org_name"].astype(str).str.len() >= 2]
     return result.to_dict(orient="records")
 
 

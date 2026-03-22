@@ -123,7 +123,16 @@ def stats(
     good = df[df["obs_type"] == "Хорошая практика"]
     proposals = df[df["obs_type"] == "Предложение"]
 
-    by_category = violations["category"].value_counts().to_dict()
+    # Разбиваем многокатегорийные строки (реальные данные) и берём топ-10
+    split_cats = (
+        violations["category"]
+        .dropna()
+        .str.split(",")
+        .explode()
+        .str.strip()
+        .loc[lambda s: s != ""]
+    )
+    by_category = split_cats.value_counts().head(10).to_dict()
     by_org = violations["org_name"].value_counts().head(7).to_dict()
 
     resolution = violations["resolved"].value_counts().to_dict()
